@@ -20,7 +20,7 @@ class SignalProcessorApp:
         self.signals = []
 
         # Create results directory if it doesn't exist
-        self.results_dir = "./results/task2"
+        self.results_dir = "./results/task3"
         os.makedirs(self.results_dir, exist_ok=True)
 
         # Create toolbar
@@ -57,6 +57,11 @@ class SignalProcessorApp:
         self.notebook.add(task2_tab, text="Task 2")
         self.create_task2_tab(task2_tab)
 
+        # Tab 3: Task 3 for signal quantization
+        task3_tab = ttk.Frame(self.notebook)
+        self.notebook.add(task3_tab, text="Task 3")
+        self.create_task3_tab(task3_tab)
+
     def create_task1_tab(self, tab):
         # Task 1 Tab Layout: Buttons for signal operations
         button_frame = ttk.Frame(tab)
@@ -77,6 +82,68 @@ class SignalProcessorApp:
         tk.Button(button_frame, text="Generate Sine Wave", command=lambda: self.generate_signal("sine")).grid(row=0, column=0, padx=5, pady=5)
         tk.Button(button_frame, text="Generate Cosine Wave", command=lambda: self.generate_signal("cosine")).grid(row=0, column=1, padx=5, pady=5)
 
+    def create_task3_tab(self, tab):
+        # Task 3 Tab Layout: Signal Quantization
+        button_frame = ttk.Frame(tab)
+        button_frame.pack(padx=10, pady=10, fill="both", expand=True)
+
+        tk.Button(button_frame, text="Quantize Signal", command=self.quantize_signal).grid(row=0, column=0, padx=5, pady=5)
+
+    def quantize_signal(self):
+        if not self.signals:
+            messagebox.showerror("Error", "No signal loaded!")
+            return
+
+        try:
+            # Prompt user to input either bits or levels
+            bits_or_levels = simpledialog.askstring("Input", "Enter number of bits or levels:")
+            if not bits_or_levels:
+                return
+
+            bits_or_levels = int(bits_or_levels)
+            if bits_or_levels < 2:
+                raise ValueError("Number of bits or levels must be at least 2.")
+
+            if bits_or_levels <= 16:
+                levels = 2 ** bits_or_levels
+            else:
+                levels = bits_or_levels
+
+            last_indices, last_signal = self.signals[-1]
+            min_val, max_val = min(last_signal), max(last_signal)
+
+            # Calculate step size and quantization levels
+            step_size = (max_val - min_val) / (levels - 1)
+            quantized_signal = [round((val - min_val) / step_size) * step_size + min_val for val in last_signal]
+            quantization_error = [orig - quant for orig, quant in zip(last_signal, quantized_signal)]
+
+            # Save the quantized signal and quantization error
+            self.save_result("quantize", last_indices, quantized_signal)
+            self.save_result("quantization_error", last_indices, quantization_error)
+
+            # Display results to user
+            self.display_quantization(last_indices, last_signal, quantized_signal, quantization_error)
+            messagebox.showinfo("Success", f"Signal quantized with {levels} levels successfully!")
+
+        except ValueError:
+            messagebox.showerror("Error", "Invalid input. Please enter a valid number.")
+
+    def display_quantization(self, indices, original, quantized, error):
+        """Displays the original, quantized, and error signals on a graph."""
+        plt.figure(figsize=(10, 6))
+        plt.plot(indices, original, label="Original Signal", color="blue")
+        plt.step(indices, quantized, label="Quantized Signal", color="red", where="mid")
+        plt.plot(indices, error, label="Quantization Error", color="green", linestyle="--")
+        plt.legend()
+        plt.title("Signal Quantization")
+        plt.xlabel("Index")
+        plt.ylabel("Amplitude")
+        plt.show()
+
+    # Remaining methods for loading, visualizing, and manipulating signals
+    # ...
+
+        
     def generate_signal(self, signal_type):
         """Generates a sinusoidal or cosinusoidal signal."""
         try:
