@@ -2,7 +2,6 @@ import os
 import tkinter as tk
 import numpy as np
 import math
-import cmath
 from tkinter import ttk, filedialog, simpledialog
 import matplotlib.pyplot as plt
 from tkinter import messagebox
@@ -11,6 +10,7 @@ class SignalProcessorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Signal Processor")
+        self.root_path = os.getcwd()
 
         # Make app responsive
         self.root.geometry("800x600")
@@ -22,7 +22,7 @@ class SignalProcessorApp:
         self.signals = []
         self.N = 0
         # Create results directory if it doesn't exist
-        self.results_dir = "./results/task8"
+        self.results_dir = os.getcwd() + "./results/task8"
         os.makedirs(self.results_dir, exist_ok=True)
 
         # Create toolbar
@@ -133,7 +133,7 @@ class SignalProcessorApp:
         button_frame.pack(padx=10, pady=10, fill="both", expand=True)
 
         # Buttons for Task 8 operations
-        tk.Button(button_frame, text="Correlate Signals", command=self.correlate_signals).grid(row=0, column=0, padx=5, pady=5)
+        tk.Button(button_frame, text="Correlate Signals", command=lambda:self.correlate_signals(True, True)).grid(row=0, column=0, padx=5, pady=5)
         tk.Button(button_frame, text="Compute Time Delay", command=self.compute_time_delay).grid(row=0, column=1, padx=5, pady=5)
         tk.Button(button_frame, text="Classify with Maximum Correlation", command=self.classify_max_corr).grid(row=0, column=2, padx=5, pady=5)
 
@@ -176,14 +176,17 @@ class SignalProcessorApp:
             try:
                 with open(file_path, 'r') as file:
                     lines = file.readlines()
-                start_index = int(lines[1])
-                self.N = int(lines[2])
-                signal_data = [list(map(float, line.split())) for line in lines[3:3 + self.N]]
+                if len(lines[0].split(' ')) == 2:
+                    start_index = int(lines[1])
+                    self.N = int(lines[2])
+                    signal_data = [list(map(float, line.split())) for line in lines[3:3 + self.N]]
 
-                indices = [item[0] for item in signal_data]
-                signal = [item[1] for item in signal_data]
+                    indices = [item[0] for item in signal_data]
+                    signal = [item[1] for item in signal_data]
 
-                self.signals.append((indices, signal))
+                    self.signals.append((indices, signal))
+                else:
+                    self.signals.append(self.ReadSignalFile(file_path))
                 messagebox.showinfo("Success", f"Loaded signal with {self.N} samples.")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to load signal: {e}")
@@ -534,9 +537,11 @@ class SignalProcessorApp:
         messagebox.showinfo("Success", "Original signal reconstructed successfully!")
 
 
-    def correlate_signals(self):
-        self.load_signal()
-        self.load_signal()
+    def correlate_signals(self, save:bool, load:bool):
+        if(load):
+            self.load_signal()
+            self.load_signal()
+
 
         if len(self.signals) < 2:
             messagebox.showerror("Error", "Load two signals to calculate correlation.")
@@ -565,7 +570,10 @@ class SignalProcessorApp:
             correlation_result.append(normalized_r12)
 
         # Save the correlation result
-        self.save_result("Correlation", list(range(N)), correlation_result)
+        if(save):
+            self.save_result("Correlation", list(range(N)), correlation_result)
+        else:
+            return correlation_result
 
 
 
@@ -617,7 +625,38 @@ class SignalProcessorApp:
 
 
     def classify_max_corr(self):
-        print('d')
+        # load input
+        self.load_signal()
+
+        # calculate class A avg
+        directory_path = self.root_path + "/tests/08-correlation/Point3 Files/Class 1"
+        classA_corrs = []
+        for filename in os.listdir(directory_path):
+            self.signals.append(self.ReadSignalFile(os.path.join(directory_path, filename)))
+            corr = self.correlate_signals(False, False)
+            # take the max correlation value
+            classA_corrs.append(max(corr))
+            self.signals.pop()
+
+        # calculate class B avg
+        directory_path = self.root_path + "/tests/08-correlation/Point3 Files/Class 2"
+        classB_corrs = []
+        for filename in os.listdir(directory_path):
+            self.signals.append(self.ReadSignalFile(os.path.join(directory_path, filename)))
+            corr = self.correlate_signals(False, False)
+            # take the max correlation value
+            classB_corrs.append(max(corr))
+            self.signals.pop()
+
+        avgA = sum(classA_corrs) / len(classA_corrs)
+        avgB = sum(classB_corrs) / len(classB_corrs)
+
+        # classify
+        messagebox.showinfo("Classification", f"Average Correlation for Class A: {avgA:.6f}\nAverage Correlation for Class B: {avgB:.6f}")
+        if avgA > avgB:
+            messagebox.showinfo("Classification", "Signal belongs to Class A")
+        else:
+            messagebox.showinfo("Classification", "Signal belongs to Class B")
 
 
         
@@ -654,6 +693,35 @@ class SignalProcessorApp:
                 # else:
                 #     f.write(f"{int(idx)} {formatted_val}\n")
         print(f"Saved result to {result_file}")
+    
+    def ReadSignalFile(self, file_name):
+        print(file_name)
+        """Reads the signal file and extracts indices and values."""
+        indices = []
+        values = []
+
+        with open(file_name, 'r') as f:
+            # Skip the first three lines (header info)
+            line = f.readline()
+            idx = 0
+            while line:
+                L = line.strip()
+                if len(L.split(' ')) == 2:
+                    parts = L.split(' ')
+                    index = float(parts[0])
+                    value = float(parts[1])
+                    indices.append(index)
+                    values.append(value)
+                    line = f.readline()
+                else:
+                    index = int(idx)
+                    value = float(L)
+                    indices.append(index)
+                    values.append(value)
+                    line = f.readline()
+                idx+=1
+
+        return indices, values
 
 
 if __name__ == "__main__":
