@@ -22,7 +22,7 @@ class SignalProcessorApp:
         self.signals = []
         self.N = 0
         # Create results directory if it doesn't exist
-        self.results_dir = "./results/task7"
+        self.results_dir = "./results/task8"
         os.makedirs(self.results_dir, exist_ok=True)
 
         # Create toolbar
@@ -69,10 +69,15 @@ class SignalProcessorApp:
         self.notebook.add(task5_tab, text="Task 5")
         self.create_task5_tab(task5_tab)
 
-         # Tab 7: Task 7 for signal quantization
+        # Tab 7: Task 7 for signal quantization
         task7_tab = ttk.Frame(self.notebook)
         self.notebook.add(task7_tab, text="Task 7")
         self.create_task7_tab(task7_tab)
+
+        # Tab 8: Task 8 for signal correlation
+        task8_tab = ttk.Frame(self.notebook)
+        self.notebook.add(task8_tab, text="Task 8")
+        self.create_task8_tab(task8_tab)
 
     def create_task1_tab(self, tab):
         # Task 1 Tab Layout: Buttons for signal operations
@@ -121,6 +126,17 @@ class SignalProcessorApp:
         # Buttons for Task 4 operations
         tk.Button(button_frame, text="DFT", command=self.DFT).grid(row=0, column=0, padx=5, pady=5)
         tk.Button(button_frame, text="IDFT", command=self.IDFT).grid(row=0, column=1, padx=5, pady=5)
+
+    def create_task8_tab(self, tab):
+        """Task 8 Tab Layout: Correlate signal, compute time delay, and classify with max corr."""
+        button_frame = ttk.Frame(tab)
+        button_frame.pack(padx=10, pady=10, fill="both", expand=True)
+
+        # Buttons for Task 8 operations
+        tk.Button(button_frame, text="Correlate Signals", command=self.correlate_signals).grid(row=0, column=0, padx=5, pady=5)
+        tk.Button(button_frame, text="Compute Time Delay", command=self.compute_time_delay).grid(row=0, column=1, padx=5, pady=5)
+        tk.Button(button_frame, text="Classify with Maximum Correlation", command=self.classify_max_corr).grid(row=0, column=2, padx=5, pady=5)
+
 
 
     def generate_signal(self, signal_type):
@@ -518,6 +534,48 @@ class SignalProcessorApp:
         messagebox.showinfo("Success", "Original signal reconstructed successfully!")
 
 
+    def correlate_signals(self):
+        self.load_signal()
+        self.load_signal()
+        
+        if len(self.signals) < 2:
+            messagebox.showerror("Error", "Load two signals to calculate correlation.")
+            return
+
+        # Extract the two signals
+        indices1, x1 = self.signals[-2]
+        indices2, x2 = self.signals[-1]
+
+        # Ensure both signals have the same length
+        if len(x1) != len(x2):
+            messagebox.showerror("Error", "Signals must have the same length.")
+            return
+
+        N = len(x1)
+        correlation_result = []
+
+        # Compute autocorrelations
+        r11_0 = sum(x ** 2 for x in x1) / N
+        r22_0 = sum(x ** 2 for x in x2) / N
+
+        # Compute cross-correlation for each lag
+        for lag in range(N):
+            r12_l = sum(x1[n] * x2[(n + lag) % N] for n in range(N)) / N
+            normalized_r12 = r12_l / (r11_0 * r22_0) ** 0.5
+            correlation_result.append(normalized_r12)
+
+        # Save the correlation result
+        self.save_result("Correlation", list(range(N)), correlation_result)
+
+
+
+    def compute_time_delay(self):
+        print('f')
+
+    def classify_max_corr(self):
+        print('d')
+
+
         
     def clear_signals(self):
         """Clear all loaded signals."""
@@ -532,6 +590,7 @@ class SignalProcessorApp:
             f.write("0\n")
             f.write(f"{len(indices)}\n")
             for idx, val in zip(indices, values):
+                print(idx, val)
                 # Format the output
                 if isinstance(idx, float) and idx != int(idx):  # Check if val is float
                     idx_str = f"{idx:.15g}"  # Append 'f' to floats
