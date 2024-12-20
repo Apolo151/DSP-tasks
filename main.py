@@ -537,7 +537,7 @@ class SignalProcessorApp:
     def correlate_signals(self):
         self.load_signal()
         self.load_signal()
-        
+
         if len(self.signals) < 2:
             messagebox.showerror("Error", "Load two signals to calculate correlation.")
             return
@@ -570,7 +570,51 @@ class SignalProcessorApp:
 
 
     def compute_time_delay(self):
-        print('f')
+        self.load_signal()
+        self.load_signal()
+        if len(self.signals) < 2:
+            messagebox.showerror("Error", "Load two signals to calculate the time delay.")
+            return
+        
+        # set sampling frequency
+        Fs = 100
+        #float(simpledialog.askstring("Input", "Enter sampling Frequency:"))
+
+        # Extract the two signals
+        indices1, x1 = self.signals[-2]
+        indices2, x2 = self.signals[-1]
+
+        # Ensure both signals have the same length
+        if len(x1) != len(x2):
+            messagebox.showerror("Error", "Signals must have the same length.")
+            return
+
+        N = len(x1)
+
+        # Step 1: Calculate the cross-correlation
+        r12 = []
+        for lag in range(N):
+            r12_l = sum(x1[n] * x2[(n + lag) % N] for n in range(N)) / N
+            r12.append(r12_l)
+
+        # Step 2: Find the maximum absolute value in the correlation
+        max_value = max(r12, key=abs)
+
+        # Step 3: Save its lag (index)
+        lag_j = r12.index(max_value)
+
+        # Step 4: Calculate the time delay
+        time_delay = lag_j * 1/Fs
+
+        # Display the results
+        messagebox.showinfo(
+            "Time Delay Calculation (Fs=100)",
+            f"Maximum Correlation: {max_value:.6f}\nLag (j): {lag_j}\nTime Delay: {time_delay:.6f} seconds"
+        )
+
+        # Optionally save the results to a file or variable
+        #self.save_result("Time Delay", ["Maximum Correlation", "Lag (j)", "Time Delay"], [max_value, lag_j, time_delay])
+
 
     def classify_max_corr(self):
         print('d')
