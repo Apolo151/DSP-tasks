@@ -704,14 +704,16 @@ class SignalProcessorApp:
 
         # Generate Gaussian noise and add it to the signal
         noisy_signal = []
+        noise_sig = []
         for x in signal:
             # Box-Muller transform to generate Gaussian noise
             u1, u2 = random.random(), random.random()
             z0 = math.sqrt(-2 * math.log(u1)) * math.cos(2 * math.pi * u2)
             noise = z0 * noise_std_dev
             noisy_signal.append(x + noise)
+            noise_sig.append(noise)
 
-        return noisy_signal
+        return noisy_signal, noise_sig
 
 
     def bonus_task(self):
@@ -723,9 +725,10 @@ class SignalProcessorApp:
         # create AWGN signal with Fs = 100
         snr_dB = 1
         indices = self.signals[-1][0]
-        noisy_signal = self.generate_awgn(self.signals[-1][1], snr_dB)
+        noisy_signal, noise_sig = self.generate_awgn(self.signals[-1][1], snr_dB)
         # save the noisy signal
         self.save_result("noisy_signal", indices, noisy_signal)
+        self.save_result("noise_only", indices, noise_sig)
 
         # apply auto-correlation to noisy signal
         self.signals.clear()
