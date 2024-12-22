@@ -1,10 +1,12 @@
 import os
+import random
 import tkinter as tk
 import numpy as np
 import math
 from tkinter import ttk, filedialog, simpledialog
 import matplotlib.pyplot as plt
 from tkinter import messagebox
+import random
 
 class SignalProcessorApp:
     def __init__(self, root):
@@ -22,7 +24,7 @@ class SignalProcessorApp:
         self.signals = []
         self.N = 0
         # Create results directory if it doesn't exist
-        self.results_dir = os.getcwd() + "./results/task8"
+        self.results_dir = os.getcwd() + "/results/task-bonus"
         os.makedirs(self.results_dir, exist_ok=True)
 
         # Create toolbar
@@ -78,6 +80,11 @@ class SignalProcessorApp:
         task8_tab = ttk.Frame(self.notebook)
         self.notebook.add(task8_tab, text="Task 8")
         self.create_task8_tab(task8_tab)
+
+        # Bonus Task
+        bonus_tab = ttk.Frame(self.notebook)
+        self.notebook.add(bonus_tab, text="Bonus Task")
+        self.create_bonus_tab(bonus_tab)
 
         # Tab 9: Task 9 for signal filteration
         task9_tab = ttk.Frame(self.notebook)
@@ -138,9 +145,17 @@ class SignalProcessorApp:
         button_frame.pack(padx=10, pady=10, fill="both", expand=True)
 
         # Buttons for Task 8 operations
-        tk.Button(button_frame, text="Correlate Signals", command=lambda:self.correlate_signals(True, True)).grid(row=0, column=0, padx=5, pady=5)
+        tk.Button(button_frame, text="Correlate Signals", command=lambda:self.correlate_signals(True, True, "Correlation")).grid(row=0, column=0, padx=5, pady=5)
         tk.Button(button_frame, text="Compute Time Delay", command=self.compute_time_delay).grid(row=0, column=1, padx=5, pady=5)
         tk.Button(button_frame, text="Classify with Maximum Correlation", command=self.classify_max_corr).grid(row=0, column=2, padx=5, pady=5)
+
+    def create_bonus_tab(self, tab):
+        """Bonus Task Tab Layout: Generate a sine wave and add AWGN."""
+        button_frame = ttk.Frame(tab)
+        button_frame.pack(padx=10, pady=10, fill="both", expand=True)
+
+        # Button for Bonus Task
+        tk.Button(button_frame, text="Generate Sine + AWGN", command=self.bonus_task).grid(row=0, column=0, padx=5, pady=5)
 
 
     def create_task9_tab(self, tab):
@@ -192,7 +207,6 @@ class SignalProcessorApp:
             try:
                 with open(file_path, 'r') as file:
                     lines = file.readlines()
-                if len(lines[0].split(' ')) == 2:
                     start_index = int(lines[1])
                     self.N = int(lines[2])
                     signal_data = [list(map(float, line.split())) for line in lines[3:3 + self.N]]
@@ -201,8 +215,6 @@ class SignalProcessorApp:
                     signal = [item[1] for item in signal_data]
 
                     self.signals.append((indices, signal))
-                else:
-                    self.signals.append(self.ReadSignalFile(file_path))
                 messagebox.showinfo("Success", f"Loaded signal with {self.N} samples.")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to load signal: {e}")
@@ -553,18 +565,21 @@ class SignalProcessorApp:
         messagebox.showinfo("Success", "Original signal reconstructed successfully!")
 
 
-    def correlate_signals(self, save:bool, load:bool):
+    def correlate_signals(self, save:bool, load:bool, filename: str):
         if(load):
             self.load_signal()
             self.load_signal()
 
 
-        if len(self.signals) < 2:
-            messagebox.showerror("Error", "Load two signals to calculate correlation.")
+        if len(self.signals) < 1:
+            messagebox.showerror("Error", "Load signals to calculate correlation.")
             return
 
         # Extract the two signals
-        indices1, x1 = self.signals[-2]
+        if len(self.signals) < 2:
+            indices1, x1 = self.signals[-1]
+        else:
+            indices1, x1 = self.signals[-2]
         indices2, x2 = self.signals[-1]
 
         # Ensure both signals have the same length
@@ -587,7 +602,7 @@ class SignalProcessorApp:
 
         # Save the correlation result
         if(save):
-            self.save_result("Correlation", list(range(N)), correlation_result)
+            self.save_result(filename, list(range(N)), correlation_result)
         else:
             return correlation_result
 
@@ -649,7 +664,7 @@ class SignalProcessorApp:
         classA_corrs = []
         for filename in os.listdir(directory_path):
             self.signals.append(self.ReadSignalFile(os.path.join(directory_path, filename)))
-            corr = self.correlate_signals(False, False)
+            corr = self.correlate_signals(False, False, "")
             # take the max correlation value
             classA_corrs.append(max(corr))
             self.signals.pop()
@@ -659,7 +674,7 @@ class SignalProcessorApp:
         classB_corrs = []
         for filename in os.listdir(directory_path):
             self.signals.append(self.ReadSignalFile(os.path.join(directory_path, filename)))
-            corr = self.correlate_signals(False, False)
+            corr = self.correlate_signals(False, False, "")
             # take the max correlation value
             classB_corrs.append(max(corr))
             self.signals.pop()
@@ -674,6 +689,48 @@ class SignalProcessorApp:
         else:
             messagebox.showinfo("Classification", "Signal belongs to Class B")
 
+    def generate_awgn(self, signal, snr_dB):
+        # Calculate signal power
+        signal_power = sum(x**2 for x in signal) / len(signal)
+
+        # Convert SNR from dB to linear scale
+        snr_linear = 10**(snr_dB / 10)
+
+        # Calculate noise power
+        noise_power = signal_power / snr_linear
+
+        # Calculate standard deviation of noise
+        noise_std_dev = math.sqrt(noise_power)
+
+        # Generate Gaussian noise and add it to the signal
+        noisy_signal = []
+        for x in signal:
+            # Box-Muller transform to generate Gaussian noise
+            u1, u2 = random.random(), random.random()
+            z0 = math.sqrt(-2 * math.log(u1)) * math.cos(2 * math.pi * u2)
+            noise = z0 * noise_std_dev
+            noisy_signal.append(x + noise)
+
+        return noisy_signal
+
+
+    def bonus_task(self):
+        "Sine + AWGN"
+        # generate a sine with 100 Fs
+        self.generate_signal("sine")
+        # apply auto-correlation and save output
+        self.correlate_signals(True, False, "sine-auto-correlation")
+        # create AWGN signal with Fs = 100
+        snr_dB = 1
+        indices = self.signals[-1][0]
+        noisy_signal = self.generate_awgn(self.signals[-1][1], snr_dB)
+        # save the noisy signal
+        self.save_result("noisy_signal", indices, noisy_signal)
+
+        # apply auto-correlation to noisy signal
+        self.signals.clear()
+        self.signals.append((indices, noisy_signal))
+        self.correlate_signals(True, False, "noisy-auto-correlation")
 
     def calculate_filter_order(self, transition_band, fs, window_type):
         delta_f = transition_band / fs
@@ -779,14 +836,13 @@ class SignalProcessorApp:
             f.write("0\n")
             f.write(f"{len(indices)}\n")
             for idx, val in zip(indices, values):
-                print(idx, val)
                 # Format the output
                 if isinstance(idx, float) and idx != int(idx):  # Check if val is float
-                    idx_str = f"{idx:.15g}"  # Append 'f' to floats
+                    idx_str = f"{idx:.6g}"  # Append 'f' to floats
                 else:
                     idx_str = int(idx)  # Format index with precision
                 if isinstance(val, float) and val != int(val):  # Check if val is float
-                    val_str = f"{val:.15g}"  # Append 'f' to floats
+                    val_str = f"{val:.6g}"  # Append 'f' to floats
                 else:
                     val_str = int(val)
 
